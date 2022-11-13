@@ -1,0 +1,12 @@
+mqtt:
+  host:       ''                   
+  port:       1883        
+  client_id:  'daikin2mqtt'   # pre append to topic                                                     
+  auth:                                           
+    username: ''                               
+    password: ''
+  topic:
+      inside_temperature: 'inside/temperature'
+      outside_temperature: 'outside/temperature'
+daikin:
+  host: ''

@@ -1,29 +1,31 @@
-import os
+import yaml
+import argparse
 
 from paho.mqtt.client import Client
-from prometheus_client import start_http_server, Gauge
 from daikinapi import Daikin
 
-g = Gauge('clima_sensor_value', 'Temperatura dal climatizzatore sala', ['name'])
-API = Daikin("192.168.1.61")
+def _load_config(path):
 
-client = Client(client_id = "collector")
-client.username_pw_set(username=os.getenv('MQTT_USERNAME'),password=os.getenv('MQTT_PASSWORD'))
-client.connect(os.getenv('MQTT_HOST'))
+    with open(path, "r") as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
 
-def process_request():
-    inside = API.inside_temperature
-    outside = API.outside_temperature
-    g.labels(name='temperatura_esterna').set(outside)
-    g.labels(name='temperatura_interna').set(inside)
-
-    client.publish(topic = "soggiorno/temperatura", payload = inside) 
-    client.publish(topic = "esterno/temperatura", payload = outside) 
+    return cfg
 
    
 if __name__ == '__main__':
-    # Start up the server to expose the metrics.
-    start_http_server(8000)
-    # Generate some requests.
-    while True:
-        process_request()
+
+    parser = argparse.ArgumentParser(description='Get info from Daikin AC to mqtt.')
+    parser.add_argument('--config',  default='config.yaml',
+                        help='yaml config file. Default config.yaml')
+    args = parser.parse_args()
+    
+    config = _load_config(args.config)
+
+    API = Daikin(config['daikin']['host'])
+
+    client = Client(client_id = config['mqtt']['client_id'])
+    client.username_pw_set(username=config['mqtt']['auth']['username'],password=config['mqtt']['auth']['password'])
+    client.connect(config['mqtt']['host'])
+
+    client.publish(topic = "{}/{}".format(config['mqtt']['client_id'], config['mqtt']['topic']['inside_temperature']), payload = API.inside_temperature) 
+    client.publish(topic = "{}/{}".format(config['mqtt']['client_id'], config['mqtt']['topic']['outside_temperature']), payload = API.outside_temperature) 
